@@ -1,5 +1,11 @@
 package main
 
+import (
+	"springmedia/repolocal"
+	"springmedia/rest"
+	"springmedia/usecase"
+)
+
 func main() {
 	repository := repolocal.NewRepository("repolocal/feldberg.jpg")
 	adapter := rest.NewAdapter()
