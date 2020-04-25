@@ -1,10 +1,10 @@
 package rest
 
 import (
+	"challenge/usecase"
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"springmedia/usecase"
 	"strings"
 	"testing"
 

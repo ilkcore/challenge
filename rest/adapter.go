@@ -1,10 +1,10 @@
 package rest
 
 import (
+	"challenge/observerwriter"
+	"challenge/usecase"
 	"log"
 	"net/http"
-	"springmedia/observerwriter"
-	"springmedia/usecase"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -20,7 +20,10 @@ func NewAdapter() Adapter {
 
 func (a Adapter) ListenAndServe() {
 	log.Printf("Listening on http://0.0.0.0%s\n", ":8080")
-	_ = http.ListenAndServe(":8080", a.r)
+	err := http.ListenAndServe(":8080", a.r)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (a Adapter) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) *mux.Route {

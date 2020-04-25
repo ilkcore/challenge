@@ -1,4 +1,4 @@
-package repolocal
+package repohttp
 
 import (
 	"bufio"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
@@ -14,8 +16,31 @@ import (
 )
 
 func TestFetchFile(t *testing.T) {
-	testfile := "../testdata/testresult-local.jpg"
-	observable, err := NewRepository("../testdata/feldberg.jpg").FetchFile()
+	testfile := "../testdata/testresult-http.jpg"
+	fakeHttp := func() (*http.Response, error) {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			data, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = w.Write(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		fh, err := os.Open("../testdata/feldberg.jpg")
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest("GET", "/", fh)
+		resp := httptest.NewRecorder()
+		handler(resp, req)
+
+		return resp.Result(), nil
+	}
+
+	observable, err := NewRepoWithFunction(fakeHttp).FetchFile()
 	if err != nil {
 		t.Fatal(err)
 	}

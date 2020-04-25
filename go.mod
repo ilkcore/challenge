@@ -1,4 +1,4 @@
-module springmedia
+module challenge
 
 go 1.14
 
