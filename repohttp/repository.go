@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/reactivex/rxgo/v2"
 )
 
 type Config struct {
@@ -53,8 +51,8 @@ func NewRepoWithFunction(f func() (*http.Response, error)) Repository {
 	}
 }
 
-func (r Repository) FetchFile() (rxgo.Observable, error) {
-	ch := make(chan rxgo.Item, 1)
+func (r Repository) FetchFile() (chan []byte, error) {
+	ch := make(chan []byte, 1)
 
 	resp, err := r.getFileFromHttp()
 	if err != nil {
@@ -67,15 +65,12 @@ func (r Repository) FetchFile() (rxgo.Observable, error) {
 		for {
 			b := make([]byte, r.buffersize)
 			n, err := reader.Read(b)
-			log.Printf("(%d) read %d", counter, n)
+			// log.Printf("(%d) read %d", counter, n)
 
 			if err != nil {
 				if err.Error() == "EOF" {
 					log.Println("reading response body completed")
-					ch <- rxgo.Item{
-						V: nil,
-						E: err,
-					}
+					ch <- []byte("done")
 					err = nil
 				}
 				if err != nil {
@@ -84,20 +79,17 @@ func (r Repository) FetchFile() (rxgo.Observable, error) {
 				break
 			}
 
-			ch <- rxgo.Item{
-				V: b[:n],
-				E: err,
-			}
+			ch <- b[:n]
 			counter++
 		}
 		defer func() {
 			if resp.Body.Close() != nil {
 				log.Println(err)
 			}
-			log.Println("Close body")
+			log.Println("close body")
 		}()
 		close(ch)
 	}()
 
-	return rxgo.FromChannel(ch, rxgo.WithPublishStrategy()), nil
+	return ch, nil
 }

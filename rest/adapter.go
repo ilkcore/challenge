@@ -1,11 +1,12 @@
 package rest
 
 import (
-	"challenge/observerwriter"
+	"bufio"
 	"challenge/usecase"
 	"log"
 	"net/http"
-	"sync"
+	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -34,9 +35,7 @@ func (a Adapter) DownloadHandler(fetchfile usecase.File) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("start DownloadHandler")
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		observable, err := fetchfile.Run()
+		ch, err := fetchfile.Run()
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -47,17 +46,47 @@ func (a Adapter) DownloadHandler(fetchfile usecase.File) http.HandlerFunc {
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("Content-Disposition", "filename=berliner-philharmoni.jpg")
 
-		observerwriter.ToHttpWriter(observable, w)
-		closeFiles := observerwriter.WriteToLocalFile(observable)
-		defer closeFiles()
+		httpChan := make(chan []byte)
+		localChan := make(chan []byte, 1700)
 
-		observable.DoOnError(func(err error) {
-			if err.Error() == "EOF" {
-				wg.Done()
+		go func() {
+			for incomingBytes := range ch {
+				httpChan <- incomingBytes
+				localChan <- incomingBytes
 			}
-		})
+			close(httpChan)
+			close(localChan)
+		}()
 
-		observable.Connect()
-		wg.Wait()
+		go func() {
+			fh, err := os.Create("output.jpg")
+			if err != nil {
+				log.Println(err)
+			}
+			defer fh.Close()
+
+			fileWriter := bufio.NewWriter(fh)
+			counter := 0
+			for data := range localChan {
+				time.Sleep(time.Millisecond * 7)
+				if _, err := fileWriter.Write(data); err != nil {
+					log.Printf("error at DoOnNext write file local %v", err)
+				}
+				if err = fileWriter.Flush(); err != nil {
+					log.Printf("error fileWriter %v", err)
+				}
+				counter++
+			}
+			log.Println("finish local delivery")
+		}()
+
+		for data := range httpChan {
+			_, err := w.Write(data)
+			if err != nil {
+				log.Printf("error write data to http responsewriter: %v", err)
+			}
+		}
+		log.Println("finish http delivery")
+		return
 	}
 }

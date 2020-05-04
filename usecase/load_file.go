@@ -1,9 +1,7 @@
 package usecase
 
-import "github.com/reactivex/rxgo/v2"
-
 type FilePort interface {
-	FetchFile() (rxgo.Observable, error)
+	FetchFile() (chan []byte, error)
 }
 
 type File struct {
@@ -14,6 +12,6 @@ func NewCreateFile(repository FilePort) File {
 	return File{repository: repository}
 }
 
-func (f File) Run() (rxgo.Observable, error) {
+func (f File) Run() (chan []byte, error) {
 	return f.repository.FetchFile()
 }
